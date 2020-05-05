@@ -1,52 +1,71 @@
-FROM registry.access.redhat.com/ubi7 as builder
+FROM registry.access.redhat.com/ubi7:7.8-255 as builder
+
+# packages for installation
+ARG PKCS11_COMMIT_ID=2032875
+ARG GCC_VERSION=4.8.5-39.el7.x86_64
+ARG MAKE_VERSION=1:3.82-24.el7.x86_64
+ARG CMAKE_CENTOS_VERSION=2.8.12.2-2.el7.x86_64
+ARG GIT_VERSION=1.8.3.1-22.el7_8.x86_64
+ARG LIBSECCOMP_DEVEL_CENTOS_VERSION=2.3.1-4.el7.x86_64
+ARG OPENSSL_DEVEL_CENTOS_VERSION=1.0.2k-19.el7.x86_64
 
 # add centos repo
 ADD centos7.repo /etc/yum.repos.d/centos.repo
 
-RUN yum -y update;
-
-RUN yum install -y \
-    gcc \
-    make \
-    cmake \
-    git \
-    libseccomp-devel \
-    openssl-devel;
+RUN yum -y update && yum install -y \
+    gcc-${GCC_VERSION} \
+    make-${MAKE_VERSION} \
+    cmake-${CMAKE_CENTOS_VERSION} \
+    git-${GIT_VERSION} \
+    libseccomp-devel-${LIBSECCOMP_DEVEL_CENTOS_VERSION} \
+    openssl-devel-${OPENSSL_DEVEL_CENTOS_VERSION};
 
 # build and install pkcs11-proxy
 RUN git clone https://github.com/SUNET/pkcs11-proxy.git \
     && cd pkcs11-proxy \
+    && git checkout ${PKCS11_COMMIT_ID} \
     && cmake . \
     && make \
     && make install;
 
 # proxy image
-FROM registry.access.redhat.com/ubi7
+FROM registry.access.redhat.com/ubi7:7.8-255
+
+# packages for installation
+ARG PKCS11_COMMIT_ID=2032875
+ARG LIBSECCOMP_CENTOS_VERSION=2.3.1-4.el7.x86_64
+ARG LIBEDIT_VERSION=3.0-12.20121213cvs.el7.x86_64
+ARG SCL_UTILS_VERSIONS=20130529-19.el7.x86_64
+ARG RH_PYTHON_VERSION=2.0-1.el7.x86_64
+ARG AWS_CLOUDHSM_CLIENT_VERSION=3.0.1-1.el7.x86_64
+ARG AWS_CLOUDHSM_PKCS11_VERSION=3.0.1-1.el7.x86_64
+
+EXPOSE 2345
 
 # add centos repo
 ADD centos7.repo /etc/yum.repos.d/centos.repo
 
-RUN yum -y update;
-
-RUN yum install -y \
-    libseccomp \
-    libedit \
-    scl-utils \
-    rh-python36;
+RUN yum -y update && yum install -y \
+    libseccomp-${LIBSECCOMP_CENTOS_VERSION} \
+    libedit-${LIBEDIT_VERSION} \
+    scl-utils-${SCL_UTILS_VERSIONS} \
+    rh-python36-${RH_PYTHON_VERSION};
 
 # copy proxy
 COPY --from=builder /usr/local/bin/pkcs11-daemon /usr/local/bin/pkcs11-daemon
 
 # install AWS cloudhsm client
-RUN rpm -ivh https://s3.amazonaws.com/cloudhsmv2-software/CloudHsmClient/EL7/cloudhsm-client-latest.el7.x86_64.rpm \
-    && rpm -ivh https://s3.amazonaws.com/cloudhsmv2-software/CloudHsmClient/EL7/cloudhsm-client-pkcs11-latest.el7.x86_64.rpm;
+RUN rpm -ivh https://s3.amazonaws.com/cloudhsmv2-software/CloudHsmClient/EL7/cloudhsm-client-${AWS_CLOUDHSM_CLIENT_VERSION}.rpm \
+    && rpm -ivh https://s3.amazonaws.com/cloudhsmv2-software/CloudHsmClient/EL7/cloudhsm-client-pkcs11-${AWS_CLOUDHSM_PKCS11_VERSION}.rpm;
 
 ENV PATH /opt/rh/rh-python36/root/usr/bin:$PATH
 ENV PKCS11_DAEMON_SOCKET tcp://0.0.0.0:2345
+ENV AWSCLIENT_START_DELAY_SECS 10
+ENV PROCESS_CHECK_SECS 15
 
 # add entrypoint
-ADD docker-entrypoint-ubi7.sh /usr/local/bin/docker-entrypoint.sh
-ENTRYPOINT [ "/usr/local/bin/docker-entrypoint.sh" ]
+ADD docker_entrypoint.sh /usr/local/bin/docker_entrypoint.sh
+ADD start_awshsmclient.sh /usr/local/bin/start_awshsmclient.sh
+ADD start_pkcs11daemon.sh /usr/local/bin/start_pkcs11daemon.sh
 
-CMD [ "pkcs11-daemon", "/opt/cloudhsm/lib/libcloudhsm_pkcs11.so", "-"]
-
+ENTRYPOINT [ "/usr/local/bin/docker_entrypoint.sh" ]
