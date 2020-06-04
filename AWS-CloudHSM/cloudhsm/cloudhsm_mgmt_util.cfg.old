@@ -1,0 +1,26 @@
+{
+	"servers": [
+	{
+		"name" : "server1",
+		"hostname" : "%%SERVER_ADDR%%",
+		"port" : 2225,
+		"certificate": "/opt/cloudhsm/etc/client.crt",
+		"pkey": "/opt/cloudhsm/etc/client.key",
+		"CAfile": "",
+		"CApath": "/opt/cloudhsm/etc/certs",
+		"ssl_ciphers": "",
+		"server_ssl" : "yes",
+                "enable"    : "yes",
+		"e2e_encryption": {
+			"enable":"yes",
+			"owner_cert_path":"/opt/cloudhsm/etc/customerCA.crt"
+		}
+	}],
+
+        "scard": {
+                 "enable": "no",
+                 "port": 2225,
+                 "certificate": "cert-sc",
+                 "pkey": "pkey-sc"
+        }
+}
