@@ -5,12 +5,12 @@
 
 # start CloudHSM client
 echo "[`date`] cloudHSM client starting..."
-/opt/cloudhsm/bin/cloudhsm_client /opt/cloudhsm/etc/cloudhsm_client.cfg &> /tmp/cloudhsm_client_start.log &
+/opt/cloudhsm/bin/cloudhsm_client /opt/cloudhsm/etc/cloudhsm_client.cfg | tee /tmp/cloudhsm_client_start.log &
 
 # wait for CloudHSM client to be ready
 while true
 do
-    if grep 'libevmulti_init: Ready !' /tmp/cloudhsm_client_start.log &> /dev/null
+    if grep 'Updating cluster to server version' /tmp/cloudhsm_client_start.log &> /dev/null
     then
         echo "[`date`] cloudHSM client start string found"
         

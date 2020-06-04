@@ -12,7 +12,7 @@ ARG GIT_VERSION=2.18.4-2.el8_2.x86_64
 ARG OPENSSL_DEVEL_VERSION=1.1.1c-15.el8.x86_64
 ARG LIBSECCOMP_DEVEL_VERSION=2.4.1-1.el8.x86_64
 
-RUN microdnf update -y && microdnf install -y \
+RUN microdnf install -y \
    git-${GIT_VERSION} \
    make-${MAKE_VERSION} \
    cmake-${CMAKE_VERSION} \
@@ -37,22 +37,27 @@ ARG MAKE_VERSION=4.2.1-10.el8.x86_64
 ARG PYTHON3_VERSION=3.6.8-2.module+el8.1.0+3334+5cb623d7.x86_64
 # required by AWS Cloud HSM client 
 ARG LIBEDIT_VERSION=3.1-23.20170329cvs.el8.x86_64
+ARG SHADOW_UTILS_VERSION=4.6-8.el8.x86_64
 ARG NCURSES_COMPAT_LIBS_VERSION=6.1-7.20180224.el8.x86_64
-ARG AWS_CLOUDHSM_CLIENT_VERSION=3.0.1-1.el7.x86_64
-ARG AWS_CLOUDHSM_PKCS11_VERSION=3.0.1-1.el7.x86_64
+ARG AWS_CLOUDHSM_CLIENT_VERSION=3.1.0-3.el7.x86_64
+ARG AWS_CLOUDHSM_PKCS11_VERSION=3.1.0-3.el7.x86_64
+# required by PKCS11 daemon
+ARG LIBSECCOMP_VERSION=2.4.1-1.el8.x86_64
 # required for process status monitoring
 ARG PROCPS_NG_VERSION=3.3.15-1.el8.x86_64
 
 EXPOSE 2345
 
-RUN microdnf update -y && microdnf install -y \
+RUN microdnf install -y \
    make-${MAKE_VERSION} \
    python36-${PYTHON3_VERSION} \
    libedit-${LIBEDIT_VERSION} \
+   libseccomp-${LIBSECCOMP_VERSION} \
    ncurses-compat-libs-${NCURSES_COMPAT_LIBS_VERSION} \
-   procps-ng-${PROCPS_NG_VERSION};
+   shadow-utils-${SHADOW_UTILS_VERSION} \
+   procps-ng-${PROCPS_NG_VERSION}
 
-# install dependencies not available in ubi stream and required by PKCS11 library
+# install dependencies not available in ubi stream and required by AWS PKCS11 library
 RUN if [ "${ARCH}" == "amd64" ]; then ARCH="x86_64"; fi \
    && rpm -ivh https://kojipkgs.fedoraproject.org/packages/compat-openssl10/1.0.2o/5.fc30/${ARCH}/compat-openssl10-1.0.2o-5.fc30.${ARCH}.rpm;
 
@@ -72,7 +77,7 @@ ENV PKCS11_DAEMON_SOCKET tcp://0.0.0.0:2345
 # pkcs11 library
 ENV LIBRARY_LOCATION /opt/cloudhsm/lib/libcloudhsm_pkcs11.so
 
-ENV AWSCLIENT_START_DELAY_SECS 10
+ENV AWSCLIENT_START_DELAY_SECS 0
 ENV PROCESS_CHECK_SECS 60
 
 # add entrypoint scripts
